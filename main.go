@@ -9,12 +9,8 @@ import (
 	urlshort "github.com/Beadko/gophecizes_urlShortener/internal"
 )
 
-var (
-	file = flag.String("file", "paths.yaml", "Path to url file")
-)
-
 func readFile(string) ([]byte, error) {
-	f, err := os.ReadFile(*file)
+	f, err := os.ReadFile(*urlshort.File)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open the file: %w", err)
 	}
@@ -22,6 +18,7 @@ func readFile(string) ([]byte, error) {
 }
 
 func main() {
+	flag.Parse()
 	mux := defaultMux()
 
 	// Build the MapHandler using the mux as the fallback
@@ -31,18 +28,18 @@ func main() {
 	}
 	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
-	yaml, err := readFile(*file)
+	m, err := readFile(*urlshort.File)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
-
-	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
+	h, err := urlshort.Filehandler(m, mapHandler)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", yamlHandler)
+
+	http.ListenAndServe(":8080", h)
 }
 
 func defaultMux() *http.ServeMux {

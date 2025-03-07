@@ -1,9 +1,17 @@
 package urlshort
 
 import (
+	"encoding/json"
+	"flag"
+	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+)
+
+var (
+	File = flag.String("file", "paths.yaml", "Path to url file")
 )
 
 type pathURL struct {
@@ -29,29 +37,29 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 	}
 }
 
-// YAMLHandler will parse the provided YAML and then return
+// FileHandler will parse the provided file based on type and then return
 // an http.HandlerFunc (which also implements http.Handler)
 // that will attempt to map any paths to their corresponding
-// URL. If the path is not provided in the YAML, then the
+// URL. If the path is not provided in the file, then the
 // fallback http.Handler will be called instead.
-//
-// YAML is expected to be in the format:
-//
-//   - path: /some-path
-//     url: https://www.some-url.com/demo
-//
-// The only errors that can be returned all related to having
-// invalid YAML data.
-//
-// See MapHandler to create a similar http.HandlerFunc via
-// a mapping of paths to urls.
-func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
+func Filehandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	var pathURLs []pathURL
-	err := yaml.Unmarshal(yml, &pathURLs)
-	if err != nil {
-		return nil, err
-	}
 	pathsToUrls := make(map[string]string)
+
+	ext := filepath.Ext(*File)
+	switch ext {
+	case ".yaml":
+		if err := yaml.Unmarshal(data, &pathURLs); err != nil {
+			return nil, err
+		}
+	case ".json":
+		if err := json.Unmarshal(data, &pathURLs); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("Unknown file type %s", ext)
+	}
+
 	for _, p := range pathURLs {
 		pathsToUrls[p.path] = p.URL
 	}

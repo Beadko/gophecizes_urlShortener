@@ -15,8 +15,8 @@ var (
 )
 
 type pathURL struct {
-	path string
-	URL  string
+	Path string `yaml:"path" json:"path"`
+	URL  string `yaml:"url" json:"url"`
 }
 
 // MapHandler will return an http.HandlerFunc (which also
@@ -33,7 +33,6 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 		} else {
 			fallback.ServeHTTP(w, r)
 		}
-
 	}
 }
 
@@ -42,7 +41,7 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 // that will attempt to map any paths to their corresponding
 // URL. If the path is not provided in the file, then the
 // fallback http.Handler will be called instead.
-func Filehandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
+func FileHandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	var pathURLs []pathURL
 	pathsToUrls := make(map[string]string)
 
@@ -61,7 +60,7 @@ func Filehandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	}
 
 	for _, p := range pathURLs {
-		pathsToUrls[p.path] = p.URL
+		pathsToUrls[p.Path] = p.URL
 	}
 
 	return MapHandler(pathsToUrls, fallback), nil

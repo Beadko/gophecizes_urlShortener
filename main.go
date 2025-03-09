@@ -4,18 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 
 	urlshort "github.com/Beadko/gophecizes_urlShortener/internal"
 )
-
-func readFile(file string) ([]byte, error) {
-	f, err := os.ReadFile(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open the file: %w", err)
-	}
-	return f, nil
-}
 
 func main() {
 	flag.Parse()
@@ -28,12 +19,7 @@ func main() {
 	}
 	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
-	m, err := readFile(*urlshort.File)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
-	h, err := urlshort.FileHandler(m, mapHandler)
+	h, err := urlshort.FileHandler(mapHandler)
 	if err != nil {
 		panic(err)
 	}

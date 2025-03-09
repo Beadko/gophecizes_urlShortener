@@ -1,12 +1,16 @@
 package urlshort
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,20 +45,48 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 // that will attempt to map any paths to their corresponding
 // URL. If the path is not provided in the file, then the
 // fallback http.Handler will be called instead.
-func FileHandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
+func FileHandler(fallback http.Handler) (http.HandlerFunc, error) {
 	var pathURLs []pathURL
 	pathsToUrls := make(map[string]string)
 
 	ext := filepath.Ext(*File)
 	switch ext {
 	case ".yaml":
-		if err := yaml.Unmarshal(data, &pathURLs); err != nil {
+		m, err := readFile(*File)
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		if err := yaml.Unmarshal(m, &pathURLs); err != nil {
 			return nil, err
 		}
 	case ".json":
-		if err := json.Unmarshal(data, &pathURLs); err != nil {
+		m, err := readFile(*File)
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		if err := json.Unmarshal(m, &pathURLs); err != nil {
 			return nil, err
 		}
+	case ".db":
+		db, err := sql.Open("pgx", "postgresql://root@localhost:26258/defaultdb?sslmode=disable")
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		defer db.Close()
+		rows, err := db.QueryContext(context.Background(), "SELECT path, url FROM paths")
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var p pathURL
+			if err := rows.Scan(&p.Path, &p.URL); err != nil {
+				return nil, fmt.Errorf("%w", err)
+			}
+			pathURLs = append(pathURLs, p)
+		}
+
 	default:
 		return nil, fmt.Errorf("Unknown file type %s", ext)
 	}
@@ -64,4 +96,12 @@ func FileHandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	}
 
 	return MapHandler(pathsToUrls, fallback), nil
+}
+
+func readFile(file string) ([]byte, error) {
+	f, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open the file: %w", err)
+	}
+	return f, nil
 }
